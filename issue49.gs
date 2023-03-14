@@ -1,51 +1,133 @@
-const hospInfo = getHospInfo();
+const hospInfo = getHospInfo_();
+function outputSsByFileName(){
+  const outputFolder = DriveApp.getFolderById(getCheckTargetFolderId_());
+  const targetFileList = [ '521.json',
+  '212.json',
+  '223.json',
+  '623.json',
+  '520.json',
+  '419.json',
+  '619.json',
+  '314.json',
+  '405.json',
+  '503.json',
+  '205.json',
+  '509.json',
+  '607.json' ];  
+  outputSs(targetFileList, outputFolder);
+}
+function createOutputFolder_(){
+  return createFolder_(DriveApp.getFolderById(ScriptProperties.getProperty('outputFolderId')), `${todayYyyymmdd_()} 施設別英文論文リスト`);
+}
 /**
- * スプレッドシート出力
+ * Output spreadsheets.
+ * @param none.
+ * @return none.
  */
-function outputSs(){
-  const outputFolder = DriveApp.getFolderById(ScriptProperties.getProperty('outputFolderId'));
+function outputSs(targetFileList=null, thisOutputFolder=null){
+  const outputFolder = thisOutputFolder === null ? createOutputFolder_() : thisOutputFolder;
   const inputFolder = DriveApp.getFolderById(ScriptProperties.getProperty('intermediateFolder'));
   const inputFiles = inputFolder.getFiles();
-  let files = [];
+  let tempFiles = [];
   while (inputFiles.hasNext()) {
     const file = inputFiles.next();
-    files.push(file);
+    tempFiles.push(file);
   }
-  const batchUpdate = new SpreadSheetBatchUpdate();
-  const colWidthsList = [74, 240, 77, 154, 240, 240, 180, 60, 60, 80, 80, 90, 90, 125, 100];
-  const header = [['施設コード', '施設名', 'PubMed_ID', 'WoS_ID(uid)', '著者', 'タイトル', '雑誌名(publicationName)', '巻(vol)', '号(issue)', 'ページ', '年(PubYear)', '月(PubMonth)', 'Epub Date(earlyAccessDate)', 'DT(docType)', '筆頭著者または筆頭著者以外']];
+  const files = targetFileList ? targetFileList.map(target => tempFiles.filter(file => target === file.getName())[0])
+                                : [...tempFiles];
+  const sortColName = '出版日(targetDate)';
+  const headerAndColWidth = [
+    ['施設コード', 74],
+    ['施設名', 240],
+    ['PubMed_ID', 77], 
+    ['WoS_ID(uid)', 154], 
+    ['著者', 240],
+    ['タイトル', 240], 
+    ['雑誌名(publicationName)', 180],
+    ['巻(vol)', 60],
+    ['号(issue)', 60],
+    ['ページ', 80],
+    ['年(PubYear)', 90], 
+    ['月(PubMonth)', 90],
+    ['Epub Date(earlyAccessDate)', 125], 
+    ['DT(docType)', 100],
+    ['貴院著者名', 90],
+    ['筆頭著者または筆頭著者以外', 200], 
+    ['出版日(targetDate)', 80],
+  ];
+  const sortIdx = headerAndColWidth.map((x, idx) => x[0] === sortColName ? idx: null).filter(x => x)[0];
+  const header = [headerAndColWidth.map(x => x[0])];
+  const colWidthsList = headerAndColWidth.map(x => x[1]);
   const sheetId = 0;
-  const colWidths = colWidthsList.map((width, idx) => batchUpdate.getSetColWidthRequest(sheetId, width, idx, idx + 1));
+  const colWidths = colWidthsList.map((width, idx) => spreadSheetBatchUpdate.getSetColWidthRequest(sheetId, width, idx, idx + 1));
   files.forEach(file => {
     const values = JSON.parse(file.getBlob().getDataAsString());
-    const body = values.map(x => x.map(x => x[1]));
+    const body = values.map(x => x.map(x => x[1])).sort((x, y) => new Date(x[sortIdx]) - new Date(y[sortIdx]));
     const editValues = [...header, ...body];
     const newSheet = Sheets.newSpreadsheet();
     newSheet.properties = Sheets.newSpreadsheetProperties();
-    newSheet.properties.title = file.getName();
+    const outputSheetName = hospInfo.filter(x => x[0] === file.getName().replace(/\.json/i, ''))[0].join('_');
+    newSheet.properties.title = outputSheetName;
     const ss = Sheets.Spreadsheets.create(newSheet);
-    const updateCellRequest = batchUpdate.getRangeSetValueRequest(sheetId, 
-                                                                  0, 
-                                                                  0, 
-                                                                  editValues);
+    const updateCellRequest = spreadSheetBatchUpdate.getRangeSetValueRequest(sheetId, 
+                                                                             0, 
+                                                                             0, 
+                                                                             editValues);
     const batchUpdateRequest = {
       'requests' : [
         updateCellRequest,
         ...colWidths,
-        batchUpdate.getCellWrapRequest(sheetId),
-        batchUpdate.getAutoResizeRowRequest(sheetId, 1, editValues.length),
-        batchUpdate.getSetRowHeightRequest(sheetId, 21, 0, 1),
+        spreadSheetBatchUpdate.getAllCellWrapRequest(sheetId),
+        spreadSheetBatchUpdate.getAutoResizeRowRequest(sheetId, 1, editValues.length),
+        spreadSheetBatchUpdate.getSetRowHeightRequest(sheetId, 21, 0, 1),
       ],
+    }
+    try{
+      Sheets.Spreadsheets.batchUpdate(batchUpdateRequest, ss.spreadsheetId);
+      Utilities.sleep(200);
+      DriveApp.getFileById(ss.spreadsheetId).moveTo(outputFolder);
+    } catch(error){
+      console.log(`output error:${outputSheetName}`);
     }                                                              
-    Sheets.Spreadsheets.batchUpdate(batchUpdateRequest, ss.spreadsheetId);
-    Utilities.sleep(100);
-    DriveApp.getFileById(ss.spreadsheetId).moveTo(outputFolder);
   });
 }
 /**
- * 中間ファイルを出力する
+ * @param none.
+ * @return {string} For example '20230310_1435'.
+ */
+function todayYyyymmdd_(){
+  return Utilities.formatDate(new Date(), 'JST', 'yyyyMMdd_HHmm');
+}
+/**
+ * @param {Object} parentFolder The folder object to which the folder will be created.
+ * @param {string} folderName Name of the folder to be created.
+ * @return {Object} The folder object.
+ */
+function createFolder_(parentFolder, folderName=todayYyyymmdd_()){
+  return parentFolder.createFolder(folderName);
+}
+/**
+ * Move old files.
+ * @param {Object} fromFolder The folder from which to move.
+ * @param {Object} toFolder The destination folder.
+ * @return none.
+ */
+function saveFiles_(fromFolder, toFolder){
+  const oldFiles = fromFolder.getFiles();
+  while (oldFiles.hasNext()){
+    const file = oldFiles.next();
+    file.moveTo(toFolder);
+  } 
+}
+/**
+ * Output intermediate files.
+ * @param none.
+ * @return none.
  */
 function outputJson(){
+  const outputJsonFolder = DriveApp.getFolderById(ScriptProperties.getProperty('intermediateFolder'));
+  const backupFolder = createFolder_(outputJsonFolder);
+  saveFiles_(outputJsonFolder, backupFolder);
   const inputFolder = DriveApp.getFolderById(ScriptProperties.getProperty('inputFolder'));
   const inputFiles = inputFolder.getFiles();
   let files = [];
@@ -53,20 +135,17 @@ function outputJson(){
     const file = inputFiles.next();
     files.push(file);
   }
-  const targetHospList = hospInfo.map(x => [x[0], x[1].replace('国立病院機構', '')]);
-  // ここ変わる予定↓
-//  const jsonFileName = files.map(x => targetHospList.filter(hosp => hosp[1] === x.getName().replace('.json', '').replace('ど', 'ど').replace('が', 'が').replace('弘前病院', '弘前総合医療センター'))[0].join('_'));
-  const thisFolder = DriveApp.getFolderById(ScriptProperties.getProperty('thisFolder'));
-  const fileNameList = Utilities.newBlob('', 'text/csv', '出力ファイル名リスト.txt').setDataFromString(jsonFileName, 'UTF-8');
-  thisFolder.createFile(fileNameList);
-  const outputJsonFolder = DriveApp.getFolderById(ScriptProperties.getProperty('intermediateFolder'));
-  files.forEach((x, idx) => {
+  files.forEach(x => {
     const json = getJson_(x);
-    const blob = Utilities.newBlob('', 'text/plain', jsonFileName[idx]).setDataFromString(json, 'UTF-8');
+    const blob = Utilities.newBlob('', 'text/plain', x.getName()).setDataFromString(json, 'UTF-8');
     outputJsonFolder.createFile(blob);
   });
   return;
 }
+/**
+ * @param {Object} file file object.
+ * @return {string} 
+ */
 function getJson_(file){
   const value = file.getBlob().getDataAsString();
   try {
@@ -79,16 +158,38 @@ function getJson_(file){
   const outputJson = JSON.stringify(res);
   return outputJson;  
 }
+/**
+ * Reads the input file, edits the necessary information, and returns a string in JSON format.
+ * @param {Object} rec 
+ * @return {Object}
+ */
 function getJsonDetail_(rec){
   const facility = rec.facility;
   const facilityNumber = facility.facilityNumber;
-  // 施設コードから施設情報を取得する
-  const facilityInfo = getHospOoAd_().filter(x => x.facilityNumber === facilityNumber)[0];
-  // 日本語施設名を追加
+  const arrayFacilityInfo = getHospOoAd_().filter(x => x.facilityNumber === facilityNumber);
+  const summaryFacilityInfo = arrayFacilityInfo.length > 1 ? arrayFacilityInfo.reduce((total, current) => [[...total.OO, ...current.OO], [...total.AD, ...current.AD]]) : null;
+  const facilityInfo = !summaryFacilityInfo ? arrayFacilityInfo[0] :Object.fromEntries([['OO', summaryFacilityInfo[0]], ['AD', summaryFacilityInfo[1]], ['facilityNumber', facilityNumber]]);
+  // Add Japanese facility name.
   const tempFacilityInfo = hospInfo.filter(x => x[0] === String(facilityNumber))[0];
   facilityInfo.facilityNameJp = tempFacilityInfo[1];
   const papers = rec.papers;
   const res = papers.map(paper => {
+    const targetFacilityAuthors = paper.authors.map(authorInfo => {
+      if (!authorInfo.isNhoStaff){
+        return null;
+      }
+      const ad = authorInfo.organizations.map(organization => facilityInfo.AD.map(ad => new RegExp(ad, 'i').test(organization.fullAddress)).some(x => x)).some(x => x);
+      if (ad){
+        return authorInfo;
+      }
+      const oo = authorInfo.organizations.map(organization => facilityInfo.OO.map(oo => organization.content.map(content => new RegExp(oo, 'i').test(content)).some(x => x)).some(x => x)).some(x => x);
+      if (oo){
+        return authorInfo;
+      }
+      return null;
+    }).filter(x => x);
+    const targetFacilityAuthorName = targetFacilityAuthors.map(x => x.name).join(', ')
+    const isFirstAuthor = targetFacilityAuthors.map(x => x.isFirstAuthor).some(x => x);
     const authorList = paper.authors.map(x => x.name).join(',');
     const item = new Map();
     item.set('facilityCode', facilityNumber);
@@ -105,36 +206,20 @@ function getJsonDetail_(rec){
     item.set('pm', paper.pubYear ? paper.pubMonth : '');
     item.set('epubDate', paper.earlyAccessDate ? paper.earlyAccessDate : '');
     item.set('dt', paper.docTypes.join(','));
-    item.set('isFirstAuthor', 'dummy');  // 筆頭著者かそうでないか
+    item.set('targetFacilityAuthorName', targetFacilityAuthorName);
+    item.set('isFirstAuthor', isFirstAuthor ? '筆頭著者' : '筆頭著者以外');
+    item.set('sortDate', paper.targetDate? paper.targetDate.split('T')[0] : '');
     return [...item];
   });
   return res;
-}
-function copyFiles_(sheetNames){
-//  const sheetNames = getHospInfo().map(x => `${x[0]}_${x[1]}`);
-  for (let i = 0; i < sheetNames.length; i++){
-    copyFile_(sheetNames[i]);
-    Utilities.sleep(100);
-  }
-}
-/**
- * @param {string} new file name.
- * @return {object} spreadsheet object.
- */
-function copyFile_(newName){
-  const copyFromFile = DriveApp.getFileById(ScriptProperties.getProperty('templateFileId'));
-  const outputFolder = DriveApp.getFolderById(ScriptProperties.getProperty('outputFolderId'));
-  const newFile = copyFromFile.makeCopy(outputFolder);
-  newFile.setName(newName);
-  return newFile;
 }
 /**
  * Return basic hospital information.
  * @param none.
  * @return [[number, string]] A two-dimensional array of facility codes and facility names.
  */
-function getHospInfo(){
-  const inputFile = SpreadsheetApp.openById(ScriptProperties.getProperty('hospInfoFileId')).getSheetByName('病院基本情報').getDataRange().getValues();
-  const sheetNames = inputFile.map(x => [x[0], x[1]]).filter((_, idx, arr) => idx !== 0 && idx !== arr.length - 1);
+function getHospInfo_(){
+  const inputFile = spreadSheetBatchUpdate.rangeGetValue(ScriptProperties.getProperty('hospInfoFileId'), '病院基本情報!A:I')[0].values;
+  const sheetNames = inputFile.map(x => [x[0], x[7]]).filter((_, idx) => idx !== 0);
   return sheetNames;
 }

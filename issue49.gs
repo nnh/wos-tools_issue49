@@ -1,19 +1,7 @@
 const hospInfo = getHospInfo_();
 function outputSsByFileName(){
   const outputFolder = DriveApp.getFolderById(getCheckTargetFolderId_());
-  const targetFileList = [ '521.json',
-  '212.json',
-  '223.json',
-  '623.json',
-  '520.json',
-  '419.json',
-  '619.json',
-  '314.json',
-  '405.json',
-  '503.json',
-  '205.json',
-  '509.json',
-  '607.json' ];  
+  const targetFileList = [ '504.json' ];  
   outputSs(targetFileList, outputFolder);
 }
 function createOutputFolder_(){
@@ -219,7 +207,7 @@ function getJsonDetail_(rec){
  * @return [[number, string]] A two-dimensional array of facility codes and facility names.
  */
 function getHospInfo_(){
-  const inputFile = spreadSheetBatchUpdate.rangeGetValue(PropertiesService.getScriptProperties().getProperty('hospInfoFileId'), '病院基本情報!A:I')[0].values;
+  const inputFile = spreadSheetBatchUpdate.rangeGetValue(PropertiesService.getScriptProperties().getProperty('hospInfoFileId'), 'base!A:I')[0].values;
   const sheetNames = inputFile.map(x => [x[0], x[7]]).filter((_, idx) => idx !== 0);
   return sheetNames;
 }

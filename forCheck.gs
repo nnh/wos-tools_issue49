@@ -1,7 +1,7 @@
 const checkFolder = DriveApp.getFolderById(getCheckTargetFolderId_());
 function getCheckTargetFolderId_(){
   // 最新のフォルダを取得する
-  const parentFolder = DriveApp.getFolderById(ScriptProperties.getProperty('outputFolderId'));
+  const parentFolder = DriveApp.getFolderById(PropertiesService.getScriptProperties().getProperty('outputFolderId'));
   const folders = parentFolder.getFolders();
   let lastUpdate = [];
   while (folders.hasNext()){
@@ -12,6 +12,19 @@ function getCheckTargetFolderId_(){
   return sortFolder[0][0];
 }
 // 確認用スクリプト
+function countFilesInFolder() {
+  // ファイル数確認
+  const folder = checkFolder;
+  let fileCount = 0;
+  const files = folder.getFiles();
+  while (files.hasNext()) {
+    files.next();
+    fileCount++;
+  }
+  
+  console.log("フォルダ内のファイルの数: " + fileCount);
+}
+
 function forCheck3(){
   // 貴院著者が出ていないPubMedIdを抽出する
   const targetFolder = checkFolder;
@@ -32,7 +45,7 @@ function forCheck3(){
     console.log('対象０件');
     return;
   }
-  const output = SpreadsheetApp.openById(ScriptProperties.getProperty('forCheck3SheetId')).getSheets()[0];
+  const output = SpreadsheetApp.openById(PropertiesService.getScriptProperties().getProperty('forCheck3SheetId')).getSheets()[0];
   output.clear();
   output.getRange(1, 1, target.length, target[0].length).setValues(target);
   
@@ -42,7 +55,7 @@ function forCheck2(){
   const outputFolder = checkFolder;
   console.log(`対象フォルダ：${checkFolder.getName()}`);
   const outputFiles = outputFolder.getFiles();
-  const inputFolder = DriveApp.getFolderById(ScriptProperties.getProperty('inputFolder'));
+  const inputFolder = DriveApp.getFolderById(PropertiesService.getScriptProperties().getProperty('inputFolder'));
   const inputFiles = inputFolder.getFiles();
   const outputDataMap = new Map();
   const inputDataMap = new Map();
@@ -72,7 +85,7 @@ function forCheck1(){
   const outputFolder = checkFolder;
   console.log(`対象フォルダ：${checkFolder.getName()}`);
   const outputFiles = outputFolder.getFiles();
-  const inputFolder = DriveApp.getFolderById(ScriptProperties.getProperty('inputFolder'));
+  const inputFolder = DriveApp.getFolderById(PropertiesService.getScriptProperties().getProperty('inputFolder'));
   const inputFiles = inputFolder.getFiles();
   let inputFilenames = [];
   while (inputFiles.hasNext()){

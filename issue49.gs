@@ -1,23 +1,11 @@
 const hospInfo = getHospInfo_();
 function outputSsByFileName(){
   const outputFolder = DriveApp.getFolderById(getCheckTargetFolderId_());
-  const targetFileList = [ '521.json',
-  '212.json',
-  '223.json',
-  '623.json',
-  '520.json',
-  '419.json',
-  '619.json',
-  '314.json',
-  '405.json',
-  '503.json',
-  '205.json',
-  '509.json',
-  '607.json' ];  
+  const targetFileList = [ '504.json' ];  
   outputSs(targetFileList, outputFolder);
 }
 function createOutputFolder_(){
-  return createFolder_(DriveApp.getFolderById(ScriptProperties.getProperty('outputFolderId')), `${todayYyyymmdd_()} 施設別英文論文リスト`);
+  return createFolder_(DriveApp.getFolderById(PropertiesService.getScriptProperties().getProperty('outputFolderId')), `${todayYyyymmdd_()} 施設別英文論文リスト`);
 }
 /**
  * Output spreadsheets.
@@ -26,7 +14,7 @@ function createOutputFolder_(){
  */
 function outputSs(targetFileList=null, thisOutputFolder=null){
   const outputFolder = thisOutputFolder === null ? createOutputFolder_() : thisOutputFolder;
-  const inputFolder = DriveApp.getFolderById(ScriptProperties.getProperty('intermediateFolder'));
+  const inputFolder = DriveApp.getFolderById(PropertiesService.getScriptProperties().getProperty('intermediateFolder'));
   const inputFiles = inputFolder.getFiles();
   let tempFiles = [];
   while (inputFiles.hasNext()) {
@@ -125,10 +113,10 @@ function saveFiles_(fromFolder, toFolder){
  * @return none.
  */
 function outputJson(){
-  const outputJsonFolder = DriveApp.getFolderById(ScriptProperties.getProperty('intermediateFolder'));
+  const outputJsonFolder = DriveApp.getFolderById(PropertiesService.getScriptProperties().getProperty('intermediateFolder'));
   const backupFolder = createFolder_(outputJsonFolder);
   saveFiles_(outputJsonFolder, backupFolder);
-  const inputFolder = DriveApp.getFolderById(ScriptProperties.getProperty('inputFolder'));
+  const inputFolder = DriveApp.getFolderById(PropertiesService.getScriptProperties().getProperty('inputFolder'));
   const inputFiles = inputFolder.getFiles();
   let files = [];
   while (inputFiles.hasNext()) {
@@ -207,7 +195,7 @@ function getJsonDetail_(rec){
     item.set('epubDate', paper.earlyAccessDate ? paper.earlyAccessDate : '');
     item.set('dt', paper.docTypes.join(','));
     item.set('targetFacilityAuthorName', targetFacilityAuthorName);
-    item.set('isFirstAuthor', isFirstAuthor ? '筆頭著者' : '筆頭著者以外');
+    item.set('isFirstAuthor', isFirstAuthor ? '（筆頭筆者）' : '（筆頭筆者以外）');
     item.set('sortDate', paper.targetDate? paper.targetDate.split('T')[0] : '');
     return [...item];
   });
@@ -219,7 +207,7 @@ function getJsonDetail_(rec){
  * @return [[number, string]] A two-dimensional array of facility codes and facility names.
  */
 function getHospInfo_(){
-  const inputFile = spreadSheetBatchUpdate.rangeGetValue(ScriptProperties.getProperty('hospInfoFileId'), '病院基本情報!A:I')[0].values;
+  const inputFile = spreadSheetBatchUpdate.rangeGetValue(PropertiesService.getScriptProperties().getProperty('hospInfoFileId'), 'base!A:I')[0].values;
   const sheetNames = inputFile.map(x => [x[0], x[7]]).filter((_, idx) => idx !== 0);
   return sheetNames;
 }

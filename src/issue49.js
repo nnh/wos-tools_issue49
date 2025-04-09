@@ -1,7 +1,11 @@
 const hospInfo = getHospInfo_();
 function outputSsByFileName() {
-  const outputFolder = DriveApp.getFolderById(getCheckTargetFolderId_());
-  const targetFileList = ['504.json'];
+  const targetFolder = getCheckTargetFolderId_();
+  const outputFolder =
+    targetFolder !== null
+      ? DriveApp.getFolderById(targetFolder)
+      : createOutputFolder_();
+  const targetFileList = ['100.json'];
   outputSs(targetFileList, outputFolder);
 }
 function createOutputFolder_() {

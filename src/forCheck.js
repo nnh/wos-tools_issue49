@@ -1,4 +1,4 @@
-const checkFolder = DriveApp.getFolderById(getCheckTargetFolderId_());
+//const checkFolder = DriveApp.getFolderById(getCheckTargetFolderId_());
 function getCheckTargetFolderId_(){
   // 最新のフォルダを取得する
   const parentFolder = DriveApp.getFolderById(PropertiesService.getScriptProperties().getProperty('outputFolderId'));

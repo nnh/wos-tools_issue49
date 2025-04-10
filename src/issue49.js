@@ -42,7 +42,7 @@ function outputSs(targetFileList = null, thisOutputFolder = null) {
   const headerAndColWidth = [
     ['施設コード', 74],
     ['施設名', 240],
-    ['PubMed_ID', 77],
+    ['', 10],
     ['WoS_ID(uid)', 154],
     ['著者', 240],
     ['タイトル', 240],
@@ -52,11 +52,18 @@ function outputSs(targetFileList = null, thisOutputFolder = null) {
     ['ページ', 80],
     ['年(PubYear)', 90],
     ['月(PubMonth)', 90],
+    ['著者所属', 240],
     ['Epub Date(earlyAccessDate)', 125],
     ['DT(docType)', 100],
-    ['貴院著者名', 90],
+    ['', 10],
+    ['', 10],
+    ['', 10],
+    ['', 10],
+    //    ['貴院著者名', 90],
     ['筆頭著者または筆頭著者以外', 200],
-    ['出版日(targetDate)', 80],
+    ['', 10],
+    ['PubMed_ID', 77],
+    [sortColName, 80],
   ];
   const sortIdx = headerAndColWidth
     .map((x, idx) => (x[0] === sortColName ? idx : null))
@@ -252,10 +259,35 @@ function getJsonDetail_(rec) {
       .map(x => x.isFirstAuthor)
       .some(x => x);
     const authorList = paper.authors.map(x => x.name).join(',');
+    const allAuthorNameAndAd = paper.authors
+      .map(author => {
+        const organizations = author.organizations || [];
+        const nameAndAd = organizations.map(organization => {
+          const ad = organization.fullAddress || '';
+          return [author.name, ad];
+        });
+        return nameAndAd;
+      })
+      .flat();
+    const mergedAuthorNameAndAd = allAuthorNameAndAd.reduce(
+      (acc, [name, ad]) => {
+        const existing = acc.find(item => item[1] === ad);
+        if (existing) {
+          existing[0] += `; ${name}`;
+        } else {
+          acc.push([name, ad]);
+        }
+        return acc;
+      },
+      []
+    );
+    const outputNameAndAd = mergedAuthorNameAndAd
+      .map(([authorName, ad]) => `[${authorName}] ${ad}`)
+      .join('; ');
     const item = new Map();
     item.set('facilityCode', facilityNumber);
     item.set('facilityName', facilityInfo.facilityNameJp);
-    item.set('pubMedId', paper.pubMedId);
+    item.set('filler1', '');
     item.set('wosId', paper.uid);
     item.set('author', authorList);
     item.set('title', paper.title);
@@ -265,13 +297,20 @@ function getJsonDetail_(rec) {
     item.set('page', paper.page.content ? paper.page.content : '');
     item.set('py', paper.pubYear ? paper.pubYear : '');
     item.set('pm', paper.pubYear ? paper.pubMonth : '');
+    item.set('authorAffiliation', outputNameAndAd);
     item.set('epubDate', paper.earlyAccessDate ? paper.earlyAccessDate : '');
     item.set('dt', paper.docTypes.join(','));
-    item.set('targetFacilityAuthorName', targetFacilityAuthorName);
+    item.set('filler2', '');
+    item.set('filler3', '');
+    item.set('filler4', '');
+    item.set('filler5', '');
+    //    item.set('targetFacilityAuthorName', targetFacilityAuthorName);
     item.set(
       'isFirstAuthor',
       isFirstAuthor ? '（筆頭筆者）' : '（筆頭筆者以外）'
     );
+    item.set('filler6', '');
+    item.set('pubMedId', paper.pubMedId);
     item.set(
       'sortDate',
       paper.targetDate ? paper.targetDate.split('T')[0] : ''

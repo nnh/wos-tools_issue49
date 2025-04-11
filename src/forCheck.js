@@ -18,6 +18,14 @@ const spreadSheetColumnIndexMap = new Map([
 ]);
 const compareTargetList = spreadSheetColumnIndexMap.keys();
 const jsonValueIdx = 1;
+function execCheck() {
+  console.log('=== Check Start ===');
+  checkAllFilesConvJsonProcessed();
+  checkAllWosIdsConvJsonProcessed();
+  checkAllFilesOutputSpreadSheetProcessed();
+  checkAllWosIdsProcessed();
+  console.log('=== Check End ===');
+}
 function checkAllWosIdsProcessed() {
   console.log(
     '4.全てのJSON情報がスプレッドシートに出力されていることを確認する処理'

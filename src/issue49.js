@@ -5,7 +5,7 @@ function outputSsByFileName() {
     targetFolder !== null
       ? DriveApp.getFolderById(targetFolder)
       : createOutputFolder_();
-  const targetFileList = ['100.json'];
+  const targetFileList = [testTargetJsonFileName];
   outputSs(targetFileList, outputFolder);
 }
 function createOutputFolder_() {
@@ -269,7 +269,25 @@ function getJsonDetail_(rec) {
         return nameAndAd;
       })
       .flat();
-    const mergedAuthorNameAndAd = allAuthorNameAndAd.reduce(
+    const tempAuthors = allAuthorNameAndAd.map(x => x[0]);
+    const tempAuthorsSet = [];
+    for (let i = 0; i < tempAuthors.length; i++) {
+      const authorName = tempAuthors[i];
+      const isUnique = !tempAuthorsSet.includes(authorName);
+      if (isUnique) {
+        tempAuthorsSet.push(authorName);
+      }
+    }
+    const authorAnduniqueAd = [];
+    tempAuthorsSet.forEach(authorName => {
+      const target = allAuthorNameAndAd.filter(x => x[0] === authorName);
+      const targetFacilities = target.map(x => x[1]);
+      const uniqueFacilities = [...new Set(targetFacilities)];
+      const res = uniqueFacilities.map(x => [authorName, x]);
+      authorAnduniqueAd.push(...res);
+    });
+
+    const mergedAuthorNameAndAd = authorAnduniqueAd.reduce(
       (acc, [name, ad]) => {
         const existing = acc.find(item => item[1] === ad);
         if (existing) {

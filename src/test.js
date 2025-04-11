@@ -1,4 +1,3 @@
-const testTargetJsonFileName = '311.json';
 // 3.出力したスプレッドシートとWoS GUIで取得したエクセルファイルの内容を比較する処理
 function testCompareWosGui() {
   const testFolder = getTestFolder_();
@@ -76,10 +75,10 @@ function testGetQueryString() {
 // テスト用関数、outputFolderに指定したフォルダにスプレッドシートを出力する処理
 function testOutputSs() {
   const outputFolder = getTestFolder_();
-  const targetFileList = ['412.json'];
+  const targetFileList = [testTargetJsonFileName];
   outputSs(targetFileList, outputFolder);
 }
-
+// テスト用関数、JSON変換処理のテスト
 function testOutputJson() {
   const outputJsonFolder = getTestFolder_();
   const inputFolder = DriveApp.getFolderById(
@@ -87,10 +86,15 @@ function testOutputJson() {
   );
   const inputFiles = inputFolder.getFiles();
   const files = [];
+  const targetFileName = testTargetJsonFileName;
   while (inputFiles.hasNext()) {
     const file = inputFiles.next();
-    files.push(file);
-    break;
+    if (file.getName() === targetFileName) {
+      files.push(file);
+    }
+  }
+  if (files.length === 0) {
+    throw new Error(`${targetFileName}が見つかりません`);
   }
   files.forEach(x => {
     const json = getJson_(x);

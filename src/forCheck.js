@@ -1,125 +1,244 @@
-const _tempCheckFolder = getCheckTargetFolderId_();
-const checkFolder =
-  _tempCheckFolder !== null ? DriveApp.getFolderById(_tempCheckFolder) : null;
-function getCheckTargetFolderId_() {
-  // 最新のフォルダを取得する
-  const parentFolder = DriveApp.getFolderById(
-    PropertiesService.getScriptProperties().getProperty('outputFolderId')
+const spreadSheetColumnIndexMap = new Map([
+  ['facilityNumber', 0],
+  ['facilityName', 1],
+  ['wosId', 3],
+  ['author', 4],
+  ['title', 5],
+  ['publicationName', 6],
+  ['vol', 7],
+  ['issue', 8],
+  ['page', 9],
+  ['publicationYear', 10],
+  ['publicationMonth', 11],
+  ['addresses', 12],
+  ['earlyAccessDate', 13],
+  ['docType', 14],
+  ['pubmedId', 21],
+  ['targetDate', 16],
+]);
+const compareTargetList = spreadSheetColumnIndexMap.keys();
+const jsonValueIdx = 1;
+function checkAllWosIdsProcessed() {
+  console.log(
+    '4.全てのJSON情報がスプレッドシートに出力されていることを確認する処理'
   );
-  const folders = parentFolder.getFolders();
-  let lastUpdate = [];
-  while (folders.hasNext()) {
-    const folder = folders.next();
-    lastUpdate.push([
-      folder.getId(),
-      folder.getLastUpdated(),
-      folder.getName(),
-    ]);
-  }
-  if (lastUpdate.length === 0) {
-    return null;
-  }
-  const sortFolder = lastUpdate.sort((x, y) => new Date(y[1]) - new Date(x[1]));
-  return sortFolder[0][0];
+  // 個別確認用↓
+  /*
+  const targetJsonArray = ['100.json', '101.json'];
+  const targetJsonSet = new Set(
+    targetJsonArray.map(fileName => fileName.split('.')[0])
+  );
+  */
+  // 全件↓
+  const targetJsonSet = new Set();
+  checkAllWosIdsProcessed_(targetJsonSet);
 }
-// 確認用スクリプト
-function countFilesInFolder() {
-  // ファイル数確認
-  const folder = checkFolder;
-  let fileCount = 0;
-  const files = folder.getFiles();
-  while (files.hasNext()) {
-    files.next();
-    fileCount++;
-  }
+function checkAllWosIdsProcessed_(targetCodeSet = new Set()) {
+  const inputFolderId =
+    PropertiesService.getScriptProperties().getProperty('intermediateFolder');
+  const outputFolderId = getCheckTargetFolderId_();
+  const jsonFiles = getFilesForCheck_(inputFolderId);
+  const jsonFileNames = getFileNameForCheck_(jsonFiles);
+  const spreadsheetFiles = getFilesForCheck_(outputFolderId);
 
-  console.log('フォルダ内のファイルの数: ' + fileCount);
+  const targetJsonFileNames =
+    targetCodeSet.size === 0
+      ? jsonFileNames
+      : jsonFileNames.filter(fileName =>
+          targetCodeSet.has(fileName.split('.')[0])
+        );
+  const targetJsonFiles = jsonFiles.filter(file =>
+    targetJsonFileNames.includes(file.getName())
+  );
+  targetJsonFiles.forEach(jsonFile => {
+    compareJsonAndSpreadSheet_(jsonFile, spreadsheetFiles);
+  });
+  console.log(
+    `対象JSONファイル数: ${targetJsonFileNames.length} / ${jsonFileNames.length}`
+  );
+  console.log('全てのJSON情報がスプレッドシートに出力されました。');
 }
-
-function forCheck3() {
-  // 貴院著者が出ていないPubMedIdを抽出する
-  const targetFolder = checkFolder;
-  console.log(`対象フォルダ：${checkFolder.getName()}`);
-  const files = targetFolder.getFiles();
-  let target = [];
-  while (files.hasNext()) {
-    const file = files.next();
-    const sheet = SpreadsheetApp.openById(file.getId()).getSheets()[0];
-    const values = sheet.getDataRange().getValues();
-    const targetValues = values.filter(value => value[14] === '');
-    if (targetValues.length > 0) {
-      target.push(targetValues);
+function compareJsonAndSpreadSheet_(jsonFile, spreadsheetFiles) {
+  const json = JSON.parse(jsonFile.getBlob().getDataAsString());
+  const facilityCode =
+    json[0][spreadSheetColumnIndexMap.get('facilityNumber')][jsonValueIdx];
+  const spreadSheetFile = spreadsheetFiles.find(file =>
+    file.getName().includes(facilityCode)
+  );
+  if (!spreadSheetFile) {
+    throw new Error(
+      `スプレッドシートに出力されていないファイルが存在します。${facilityCode}`
+    );
+  }
+  const spreadsheet = SpreadsheetApp.openById(spreadSheetFile.getId());
+  const sheet = spreadsheet.getSheets()[0];
+  const spreadSheetValues = sheet
+    .getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn())
+    .getValues();
+  if (spreadSheetValues.length !== json.length) {
+    throw new Error(
+      `スプレッドシートの行数が異なります。${facilityCode} ${spreadSheetValues.length} ${json.length}`
+    );
+  }
+  json.forEach(jsonRow => {
+    const jsonWosId =
+      jsonRow[spreadSheetColumnIndexMap.get('wosId')][jsonValueIdx];
+    const targetSsRow = spreadSheetValues.filter(
+      row => row[spreadSheetColumnIndexMap.get('wosId')] === jsonWosId
+    );
+    if (targetSsRow.length === 0) {
+      throw new Error(
+        `スプレッドシートに出力されていないWoS Idが存在します。${facilityCode} ${jsonWosId}`
+      );
     }
-  }
-  target = target.flat();
-  if (target.length === 0) {
-    console.log('対象０件');
-    return;
-  }
-  const output = SpreadsheetApp.openById(
-    PropertiesService.getScriptProperties().getProperty('forCheck3SheetId')
-  ).getSheets()[0];
-  output.clear();
-  output.getRange(1, 1, target.length, target[0].length).setValues(target);
+    compareTargetList.forEach(targetColumn => {
+      compareValues_(jsonRow, targetSsRow[0], targetColumn);
+    });
+  });
 }
-function forCheck2() {
-  // 全件出力を確認
-  const outputFolder = checkFolder;
-  console.log(`対象フォルダ：${checkFolder.getName()}`);
-  const outputFiles = outputFolder.getFiles();
-  const inputFolder = DriveApp.getFolderById(
-    PropertiesService.getScriptProperties().getProperty('inputFolder')
-  );
-  const inputFiles = inputFolder.getFiles();
-  const outputDataMap = new Map();
-  const inputDataMap = new Map();
-  while (inputFiles.hasNext()) {
-    const blob = inputFiles.next().getBlob().getDataAsString();
-    const json = JSON.parse(blob);
-    const inputFacilityNumber = json.facility.facilityNumber;
-    const uids = [
-      ...new Set([json.papers.map(x => Number(x.uid.replace('WOS:', '')))]),
-    ][0].sort((x, y) => x - y);
-    inputDataMap.set(inputFacilityNumber, uids);
+function compareValues_(jsonRow, spreadSheetRow, targetColumn) {
+  const jsonColIndex = spreadSheetColumnIndexMap.get(targetColumn);
+  const spreadSheetColIndex = spreadSheetColumnIndexMap.get(targetColumn);
+  const jsonValue = jsonRow[jsonColIndex][jsonValueIdx] ?? '';
+  const spreadSheetValue = spreadSheetRow[spreadSheetColIndex];
+  if (jsonValue !== spreadSheetValue) {
+    throw new Error(
+      `値が一致しません。JSON: ${jsonValue}, スプレッドシート: ${spreadSheetValue}`
+    );
   }
-  const inputArray = [...inputDataMap].sort();
-  const inputJson = JSON.stringify(inputArray);
-  while (outputFiles.hasNext()) {
-    const ss = SpreadsheetApp.openById(outputFiles.next().getId());
-    const sheet = ss.getSheets()[0];
-    const values = sheet
-      .getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn())
-      .getValues();
-    const outputFacilityNumber = values[0][0];
-    const uids = [
-      ...new Set([values.map(x => Number(x[3].replace('WOS:', '')))]),
-    ][0].sort((x, y) => x - y);
-    outputDataMap.set(outputFacilityNumber, uids);
-  }
-  const outputArray = [...outputDataMap].sort();
-  const outputJson = JSON.stringify(outputArray);
-  console.log(inputJson === outputJson);
 }
-function forCheck1() {
-  // 全ての入力ファイルが処理されていることを確認する
-  const outputFolder = checkFolder;
-  console.log(`対象フォルダ：${checkFolder.getName()}`);
-  const outputFiles = outputFolder.getFiles();
-  const inputFolder = DriveApp.getFolderById(
-    PropertiesService.getScriptProperties().getProperty('inputFolder')
+
+function checkAllFilesOutputSpreadSheetProcessed() {
+  console.log(
+    '3.全てのJSONファイルがスプレッドシート出力処理されたことを確認する処理'
   );
-  const inputFiles = inputFolder.getFiles();
-  let inputFilenames = [];
-  while (inputFiles.hasNext()) {
-    inputFilenames.push(inputFiles.next().getName().replace('.json', ''));
+  const inputFolderId =
+    PropertiesService.getScriptProperties().getProperty('intermediateFolder');
+  const outputFolderId = getCheckTargetFolderId_();
+  const [jsonFileNames, spreadsheetFileNames] = getFileNameArrayForCheck_(
+    inputFolderId,
+    outputFolderId
+  );
+  const inputFacilityCodes = jsonFileNames.map(
+    fileName => fileName.split('.')[0]
+  );
+  const outputFacilityCodes = spreadsheetFileNames.map(
+    fileName => fileName.split('_')[0]
+  );
+  compareFileNameArray_(inputFacilityCodes, outputFacilityCodes);
+}
+function checkAllWosIdsConvJsonProcessed() {
+  console.log('2.JSON変換処理で全てのWoSIDが処理されたことを確認する処理');
+  const inputFolderId =
+    PropertiesService.getScriptProperties().getProperty('inputFolder');
+  const outputFolderId =
+    PropertiesService.getScriptProperties().getProperty('intermediateFolder');
+  const inputJsonFiles = getFilesForCheck_(inputFolderId);
+  const outputJsonFiles = getFilesForCheck_(outputFolderId);
+  const inputJsonFileNames = getFileNameForCheck_(inputJsonFiles);
+  const outputJsonFileNames = getFileNameForCheck_(outputJsonFiles);
+  if (inputJsonFileNames.length !== outputJsonFileNames.length) {
+    throw new Error('入力JSONファイルと出力JSONファイルの数が一致しません。');
   }
-  let outputFilenames = [];
-  while (outputFiles.hasNext()) {
-    outputFilenames.push(outputFiles.next().getName().replace(/_.*$/, ''));
+  const unmatchedFiles = inputJsonFileNames.filter(
+    fileName => !outputJsonFileNames.includes(fileName)
+  );
+  if (unmatchedFiles.length > 0) {
+    console.log('一致しないファイル:', unmatchedFiles);
+    throw new Error('入力JSONファイルと出力JSONファイルが一致しません。');
   }
-  // 0件なら全て処理されている
-  const res = inputFilenames
-    .map(input => (!outputFilenames.includes(input) ? input : null))
-    .filter(x => x);
-  console.log(res);
+  inputJsonFileNames.forEach(fileName => {
+    const inputFile = inputJsonFiles.find(file => file.getName() === fileName);
+    const outputFile = outputJsonFiles.find(
+      file => file.getName() === fileName
+    );
+    if (!inputFile || !outputFile) {
+      throw new Error(`ファイルが見つかりません: ${fileName}`);
+    }
+    const inputJson = JSON.parse(inputFile.getBlob().getDataAsString());
+    const inputPapers = inputJson.papers;
+    const outputJson = JSON.parse(outputFile.getBlob().getDataAsString());
+    if (inputPapers.length !== outputJson.length) {
+      throw new Error(
+        `入力JSONファイルと出力JSONファイルの行数が一致しません。${fileName}`
+      );
+    }
+    const inputWosIds = inputPapers.map(paper => paper.uid);
+    const outputWosIds = outputJson.map(x => x[3][1]);
+    const unmatchedWosIds = inputWosIds.filter(
+      wosId => !outputWosIds.includes(wosId)
+    );
+    if (unmatchedWosIds.length > 0) {
+      console.log('一致しないWoS ID:', unmatchedWosIds);
+      throw new Error(
+        `入力JSONファイルと出力JSONファイルのWoS IDが一致しません。${fileName}`
+      );
+    }
+  });
+  console.log('全てのWoS IDが処理されました。');
+}
+function checkAllFilesConvJsonProcessed() {
+  console.log('1.全てのファイルがJSON変換処理されたことを確認する処理');
+  checkAllFilesProcessed_(
+    PropertiesService.getScriptProperties().getProperty('inputFolder'),
+    PropertiesService.getScriptProperties().getProperty('intermediateFolder')
+  );
+}
+function compareFileNameArray_(inputFileNames, outputFileNames) {
+  // 処理されたファイルのリストを作成
+  const processedFilesSet = new Set(outputFileNames);
+  const allFilesSet = new Set(inputFileNames);
+  console.log(`処理された入力ファイル数: ${allFilesSet.size}`);
+  console.log(`処理された出力ファイル数: ${processedFilesSet.size}`);
+  // 同じ名前のファイルが複数存在する場合エラーを出力
+  if (allFilesSet.size !== inputFileNames.length) {
+    throw new Error('入力フォルダに同じ名前のファイルが複数存在します。');
+  }
+  if (processedFilesSet.size !== outputFileNames.length) {
+    throw new Error('出力フォルダに同じ名前のファイルが複数存在します。');
+  }
+  // 処理されていないファイルを確認
+  const unprocessedFiles = [...allFilesSet].filter(
+    file => !processedFilesSet.has(file)
+  );
+  if (unprocessedFiles.length > 0) {
+    console.log('処理されていないファイル:', unprocessedFiles);
+    throw new Error(`処理されていないJSONファイルが存在します。`);
+  } else {
+    console.log('全てのファイルが処理されました。');
+  }
+}
+function checkAllFilesProcessed_(inputFolderId, OutputFolderId) {
+  const [inputFileNames, outputFileNames] = getFileNameArrayForCheck_(
+    inputFolderId,
+    OutputFolderId
+  );
+  compareFileNameArray_(inputFileNames, outputFileNames);
+}
+function getFileNameArrayForCheck_(inputFolderId, outputFolderId) {
+  const allFiles = getFilesForCheck_(inputFolderId);
+  const processedFiles = getFilesForCheck_(outputFolderId);
+  const allFileNames = getFileNameForCheck_(allFiles);
+  const processedFileNames = getFileNameForCheck_(processedFiles);
+  return [allFileNames, processedFileNames];
+}
+
+function getFileNameForCheck_(fileArray) {
+  const fileNameArray = [];
+  fileArray.forEach(file => {
+    const fileName = file.getName();
+    fileNameArray.push(fileName);
+  });
+  return fileNameArray;
+}
+
+function getFilesForCheck_(folderId) {
+  const folder = DriveApp.getFolderById(folderId);
+  const files = [];
+  const fileIterator = folder.getFiles();
+  while (fileIterator.hasNext()) {
+    const file = fileIterator.next();
+    files.push(file);
+  }
+  return files;
 }

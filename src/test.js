@@ -193,11 +193,12 @@ function testCompareValues_(guiValues, outputValues) {
               `WOS ID ${wosId} のアドレス情報が一致しません。GUI: ${guiAddress} スプレッドシート: ${outputAddress}`
             );
           }
-          const guiAddressItemFacility = guiAddressItem[0][1];
-          const outputAddressItemFacility = address[1];
-          if (guiAddressItemFacility !== outputAddressItemFacility) {
+          const guiAddressItemFacility = guiAddressItem.filter(
+            x => x[1] === address[1]
+          );
+          if (guiAddressItemFacility.length === 0) {
             throw new Error(
-              `WOS ID ${wosId} のアドレス情報が一致しません。GUI: ${guiAddressItemFacility} スプレッドシート: ${outputAddressItemFacility}`
+              `WOS ID ${wosId} のアドレス情報が一致しません。GUI: ${guiAddress} スプレッドシート: ${outputAddress}`
             );
           }
         });
@@ -221,7 +222,7 @@ function testCompareWosGui() {
     .getDataRange()
     .getValues();
   testCompareValues_(guiValues, targetSpreadSheetValue);
-  console.log(0);
+  console.log('比較完了');
 }
 function testOutputSs() {
   const outputFolder = getTestFolder_();

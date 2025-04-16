@@ -1,3 +1,19 @@
+const guiColIndexMap = new Map([
+  ['wosId', 0],
+  ['author', 1],
+  ['title', 2],
+  ['publicationName', 3],
+  ['vol', 4],
+  ['issue', 5],
+  ['page', 6],
+  ['addresses', 7],
+  ['earlyAccessDate', 8],
+  ['docType', 9],
+  ['pubmedId', 10],
+  ['publicationYear', 11],
+  ['publicationMonth', 12],
+  ['groupAuthor', 13],
+]);
 function getTestFolder_() {
   const outputFolderId =
     PropertiesService.getScriptProperties().getProperty('testTargetFolderId');
@@ -84,82 +100,46 @@ function getGuiFileValueForTest_(testFolder) {
   });
   return targetInputValues;
 }
+
 function testCompareValues_(guiValues, outputValues) {
-  const guiColIndexMap = new Map([
-    ['wosId', 0],
-    ['author', 1],
-    ['title', 2],
-    ['publicationName', 3],
-    ['vol', 4],
-    ['issue', 5],
-    ['page', 6],
-    ['addresses', 7],
-    ['earlyAccessDate', 8],
-    ['docType', 9],
-    ['pubmedId', 10],
-    ['publicationYear', 11],
-    ['publicationMonth', 12],
-    ['groupAuthor', 13],
-  ]);
   outputValues.forEach((outputRow, idx) => {
     if (idx === 0) {
       return;
     }
-    const wosId = outputRow[spreadSheetColumnIndexMap.get('wosId')];
+    const spreadsheetColumnIndexForTestMap = new Map(spreadSheetColumnIndexMap);
+    // GUI側に存在しない情報は比較対象外とする
+    spreadsheetColumnIndexForTestMap.delete('facilityNumber');
+    spreadsheetColumnIndexForTestMap.delete('facilityName');
+    spreadsheetColumnIndexForTestMap.delete('targetDate');
+    const wosId = outputRow[spreadsheetColumnIndexForTestMap.get('wosId')];
     const guiRow = guiValues.find(
       value => value[guiColIndexMap.get('wosId')] === wosId
     );
     if (!guiRow) {
       throw new Error(`WOS ID ${wosId} が見つかりません`);
     }
-    spreadSheetColumnIndexMap.forEach((value, key) => {
-      if (
-        key === 'facilityNumber' ||
-        key === 'facilityName' ||
-        key === 'targetDate'
-      ) {
-        return;
-      }
+    spreadsheetColumnIndexForTestMap.forEach((value, key) => {
       const guiValue = guiRow[guiColIndexMap.get(key)];
       const outputValue = outputRow[value];
       if (key === 'author') {
-        const groupAuthor = guiRow[guiColIndexMap.get('groupAuthor')]
-          .split(';')
-          .map(x => x.trim());
-        const guiAuthor = guiValue
-          .split(';')
-          .map(x => x.replace(/,/g, '').trim());
-        const outputAuthor = outputValue
-          .split(',')
-          .map(x => x.trim())
-          .filter(x => !groupAuthor.includes(x));
-        if (
-          guiAuthor.length !== outputAuthor.length ||
-          !guiAuthor.every(author => outputAuthor.includes(author))
-        ) {
+        const res = compareAuthors_(guiRow, guiValue, outputValue);
+        if (res !== null) {
           throw new Error(
-            `WOS ID ${wosId} の著者情報が一致しません。GUI: ${guiAuthor} スプレッドシート: ${outputAuthor}`
+            `WOS ID ${wosId} の著者情報が一致しません。GUI: ${res.guiAuthor} スプレッドシート: ${res.outputAuthor}`
           );
         }
       } else if (key === 'publicationMonth') {
-        if (guiValue !== outputValue) {
-          const temp1 = guiValue.replace(/^[0-9]{4}/, '').trim();
-          if (temp1 !== outputValue) {
-            throw new Error(
-              `WOS ID ${wosId} の月情報が一致しません。GUI: ${temp1} スプレッドシート: ${outputValue}`
-            );
-          }
+        const error_f = comparePublicationMonth_(guiValue, outputValue);
+        if (error_f) {
+          throw new Error(
+            `WOS ID ${wosId} の月情報が一致しません。GUI: ${guiValue} スプレッドシート: ${outputValue}`
+          );
         }
       } else if (key === 'title') {
-        // HTMLタグを除去
-        const outputTitle = outputValue.replace(/<[^>]*>/g, '').trim();
-        // &apos;を'に置換
-        const outputTitle2 = outputTitle.replace(/&apos;/g, "'");
-        // 文字列中のダブルクォーテーションを除去
-        const outputTitle3 = outputTitle2.replace(/"/g, '');
-        if (guiValue !== outputTitle3) {
+        const error_f = compareTitle_(guiValue, outputValue);
+        if (error_f) {
           throw new Error(
-            `WOS ID ${wosId} のタイトル情報が一致しません。GUI: ${guiValue} スプレッドシート: ${outputTitle}`
+            `WOS ID ${wosId} のタイトル情報が一致しません。GUI: ${guiValue} スプレッドシート: ${outputValue}`
           );
         }
       } else if (key === 'page') {
@@ -170,14 +150,10 @@ function testCompareValues_(guiValues, outputValues) {
           );
         }
       } else if (key === 'docType') {
-        const guiDocType = guiValue.split(';').map(x => x.trim());
-        const outputDocType = outputValue.split(',').map(x => x.trim());
-        if (
-          guiDocType.length !== outputDocType.length ||
-          !guiDocType.every(docType => outputDocType.includes(docType))
-        ) {
+        const error_f = compareDocType_(guiValue, outputValue);
+        if (error_f) {
           throw new Error(
-            `WOS ID ${wosId} の文献種別情報が一致しません。GUI: ${guiDocType} スプレッドシート: ${outputDocType}`
+            `WOS ID ${wosId} の文献種別情報が一致しません。GUI: ${guiValue} スプレッドシート: ${outputValue}`
           );
         }
       } else if (key === 'publicationName') {
@@ -194,76 +170,25 @@ function testCompareValues_(guiValues, outputValues) {
           );
         }
       } else if (key === 'addresses') {
-        const guiAddress = guiValue
-          .replace(/^\[/, '')
-          .split('; [')
-          .map(x => x.split('] '))
-          .map(([names, facilities]) => {
-            const tempNames = replaceSpecialCharacters_(names);
-            const nameArray = tempNames.split(';').map(x => x.split(','));
-            const initialNameArray = nameArray.map(([sei, mei]) => {
-              const tempSei = sei.replace(/^de /, '');
-              const tempSei2 = tempSei.trim().split(' ');
-              // 旧姓は切り捨てる
-              const outputSei =
-                tempSei2.length > 1 ? tempSei2[1] : tempSei.trim();
-              // 名前の頭文字を取得
-              const outputMei = mei === undefined ? '' : mei.trim().charAt(0);
-              return `${outputSei} ${outputMei}`;
-            });
-            const joinNames = initialNameArray.join('; ');
-            return [joinNames, facilities];
-          });
-        const outputAddress = outputValue
-          .replace(/^\[/, '')
-          .split('; [')
-          .map(x => x.split('] '))
-          .map(([names, facilities]) => {
-            const tempNames = replaceSpecialCharacters_(names);
-            const namesSplit = tempNames.split('; ');
-            const nameArray = namesSplit.map(x => {
-              const tempName =
-                x.split(' ').length > 2
-                  ? x
-                      .replace(/^Le /, '')
-                      .replace(/^de la /, '')
-                      .replace(/^de /, '')
-                      .replace(/^van den /i, '')
-                      .replace(/^Van /i, '')
-                  : x;
-              const res = tempName.split(' ');
-              return res;
-            });
-            const initialNameArray = nameArray.map(([sei, mei]) => {
-              const trimmedMei = mei === undefined ? '' : mei.trim().charAt(0);
-              return `${sei.trim()} ${trimmedMei}`;
-            });
-            const joinNames = initialNameArray.join('; ');
-            return [joinNames, facilities];
-          });
-        let uniqueGuiAddress = [...guiAddress];
-        if (guiAddress.length !== outputAddress.length) {
-          // GUI側が重複している場合はOKとみなす
-          uniqueGuiAddress = guiAddress.filter(
-            (item, index, self) =>
-              index ===
-              self.findIndex(
-                other => other[0] === item[0] && other[1] === item[1]
-              )
-          );
-          if (uniqueGuiAddress.length !== outputAddress.length) {
-            if (
-              wosId !== 'WOS:001195962600047' &&
-              wosId !== 'WOS:001304189600017' &&
-              wosId !== 'WOS:001382600700002' &&
-              wosId !== 'WOS:001383183700001'
-            ) {
-              throw new Error(
-                `WOS ID ${wosId} のアドレス情報が一致しません。GUI: ${guiAddress} スプレッドシート: ${outputAddress}`
-              );
-            }
+        const guiAddress = getGuiAddress_(guiValue);
+        const outputAddress = getOutputAddress_(outputValue);
+        const uniqueGuiAddress = getUniqueGuiAddress_(
+          guiAddress,
+          outputAddress
+        );
+        if (uniqueGuiAddress.length !== outputAddress.length) {
+          if (
+            wosId !== 'WOS:001195962600047' &&
+            wosId !== 'WOS:001304189600017' &&
+            wosId !== 'WOS:001382600700002' &&
+            wosId !== 'WOS:001383183700001'
+          ) {
+            throw new Error(
+              `WOS ID ${wosId} のアドレス情報が一致しません。GUI: ${guiAddress} スプレッドシート: ${outputAddress}`
+            );
           }
         }
+
         outputAddress.forEach(address => {
           if (wosId === 'WOS:001382600700002') {
             return;
@@ -336,47 +261,11 @@ function testCompareValues_(guiValues, outputValues) {
           if (wosId === 'WOS:001383183700001') {
             return;
           }
-
-          const guiAddressItem = uniqueGuiAddress.filter(
-            x => x[0] === address[0]
-          );
-          if (guiAddressItem.length === 0) {
-            // 著者順が異なるレコードを許容する
-            const authors = address[0].split('; ');
-            const testAddressItems = uniqueGuiAddress
-              .map(([author, facility]) => {
-                const authorArray = author.split('; ');
-                if (authors.every(author => authorArray.includes(author))) {
-                  return [author, facility];
-                } else {
-                  return null;
-                }
-              })
-              .filter(x => x !== null);
-            if (testAddressItems.length === 0) {
-              throw new Error(
-                `WOS ID ${wosId} のアドレス情報が一致しません。GUI: ${uniqueGuiAddress} スプレッドシート: ${outputAddress}`
-              );
-            }
-            const testAddressItem2 = testAddressItems.filter(
-              ([_, facility]) => {
-                return facility === address[1];
-              }
+          const error_f = compareAddress_(uniqueGuiAddress, address);
+          if (error_f) {
+            throw new Error(
+              `WOS ID ${wosId} のアドレス情報が一致しません。GUI: ${uniqueGuiAddress} スプレッドシート: ${address}`
             );
-            if (testAddressItem2.length === 0) {
-              throw new Error(
-                `WOS ID ${wosId} のアドレス情報が一致しません。GUI: ${uniqueGuiAddress} スプレッドシート: ${outputAddress}`
-              );
-            }
-          } else {
-            const guiAddressItemFacility = guiAddressItem.filter(
-              x => x[1] === address[1]
-            );
-            if (guiAddressItemFacility.length === 0) {
-              throw new Error(
-                `WOS ID ${wosId} のアドレス情報が一致しません。GUI: ${guiAddress} スプレッドシート: ${outputAddress}`
-              );
-            }
           }
         });
       } else {
@@ -419,4 +308,70 @@ function replaceSpecialCharacters_(str) {
     .replace(/Â/g, 'A')
     .replace(/Ê/g, 'E')
     .replace(/Î/g, 'I');
+}
+function getGuiAddress_(guiValue) {
+  const guiAddress = guiValue
+    .replace(/^\[/, '')
+    .split('; [')
+    .map(x => x.split('] '))
+    .map(([names, facilities]) => {
+      const tempNames = replaceSpecialCharacters_(names);
+      const nameArray = tempNames.split(';').map(x => x.split(','));
+      const initialNameArray = nameArray.map(([sei, mei]) => {
+        const tempSei = sei.replace(/^de /, '');
+        const tempSei2 = tempSei.trim().split(' ');
+        // 旧姓は切り捨てる
+        const outputSei = tempSei2.length > 1 ? tempSei2[1] : tempSei.trim();
+        // 名前の頭文字を取得
+        const outputMei = mei === undefined ? '' : mei.trim().charAt(0);
+        return `${outputSei} ${outputMei}`;
+      });
+      const joinNames = initialNameArray.join('; ');
+      return [joinNames, facilities];
+    });
+  return guiAddress;
+}
+function getOutputAddress_(outputValue) {
+  const outputAddress = outputValue
+    .replace(/^\[/, '')
+    .split('; [')
+    .map(x => x.split('] '))
+    .map(([names, facilities]) => {
+      const tempNames = replaceSpecialCharacters_(names);
+      const namesSplit = tempNames.split('; ');
+      const nameArray = namesSplit.map(x => {
+        const tempName =
+          x.split(' ').length > 2
+            ? x
+                .replace(/^Le /, '')
+                .replace(/^de la /, '')
+                .replace(/^de /, '')
+                .replace(/^van den /i, '')
+                .replace(/^Van /i, '')
+            : x;
+        const res = tempName.split(' ');
+        return res;
+      });
+      const initialNameArray = nameArray.map(([sei, mei]) => {
+        const trimmedMei = mei === undefined ? '' : mei.trim().charAt(0);
+        return `${sei.trim()} ${trimmedMei}`;
+      });
+      const joinNames = initialNameArray.join('; ');
+      return [joinNames, facilities];
+    });
+  return outputAddress;
+}
+function getUniqueGuiAddress_(guiAddress, outputAddress) {
+  if (guiAddress.length === outputAddress.length) {
+    // GUI側が重複していない場合はそのまま返す
+    return guiAddress;
+  }
+  let uniqueGuiAddress = [...guiAddress];
+  // GUI側が重複している場合はOKとみなす
+  uniqueGuiAddress = guiAddress.filter(
+    (item, index, self) =>
+      index ===
+      self.findIndex(other => other[0] === item[0] && other[1] === item[1])
+  );
+  return uniqueGuiAddress;
 }

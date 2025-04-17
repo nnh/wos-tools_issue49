@@ -45,11 +45,8 @@ function execCompareByColumn_(value, key, guiRow, outputRow, wosId) {
     errorMessage = `WOS ID ${wosId} のPubMed IDが一致しません。GUI: ${guiValue} スプレッドシート: ${outputValue}`;
   } else if (key === 'addresses') {
     const groupAuthor = getGroupAuthor_(guiRow);
-    if (groupAuthor.length > 0) {
-      console.log(0);
-    }
-    const guiAddress = getGuiAddress_(guiValue);
-    const outputAddress = getOutputAddress_(outputValue);
+    const guiAddress = getGuiAddress_(guiValue, groupAuthor);
+    const outputAddress = getOutputAddress_(outputValue, groupAuthor);
     const uniqueGuiAddress = getUniqueGuiAddress_(guiAddress, outputAddress);
     if (uniqueGuiAddress.length !== outputAddress.length) {
       if (
@@ -65,6 +62,26 @@ function execCompareByColumn_(value, key, guiRow, outputRow, wosId) {
     }
 
     outputAddress.forEach(address => {
+      // GUI側の出力にエラーがあるため無視するレコード
+      if (
+        (wosId === 'WOS:001162123600001' && address[0] === 'Nishimura K') ||
+        (wosId === 'WOS:001162123600001' &&
+          address[0] === 'Matsuhisa M; Meguro S') ||
+        (wosId === 'WOS:001162123600001' && address[0] === 'Kouyama R') ||
+        wosId === 'WOS:001283232400002' ||
+        (wosId === 'WOS:001382600700002' &&
+          address[0] === 'Satomi K; Takatsuki S') ||
+        (wosId === 'WOS:001354231300040' &&
+          address[0] === 'Namba S; Sonehara K; Okada Y') ||
+        (wosId === 'WOS:001381238200026' && address[0] === 'Matsuda K') ||
+        (wosId === 'WOS:001381238200026' && address[0] === 'Murakami Y') ||
+        (wosId === 'WOS:001383183700001' &&
+          address[0] === 'Kawaguchi M; Hayashi M') ||
+        (wosId === 'WOS:001383183700001' &&
+          address[0] === 'Kadono T; Fujimoto M')
+      ) {
+        return;
+      }
       const error_f = compareAddress_(uniqueGuiAddress, address);
       if (!error_f) {
         return;

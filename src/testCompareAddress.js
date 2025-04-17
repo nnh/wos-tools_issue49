@@ -89,29 +89,35 @@ function editAddressForCompare_(value) {
     .split('; [')
     .map(x => x.split('] '));
 }
-function getGuiAddress_(guiValue) {
+function getGuiAddress_(guiValue, groupAuthor) {
   const addressValues = editAddressForCompare_(guiValue);
-  const guiAddress = addressValues.map(([names, facilities]) => {
-    //const tempNames = replaceSpecialCharacters_(names);
-    const tempNames = names;
-    const nameArray = tempNames.split(';').map(x => x.split(','));
-    const initialNameArray = nameArray.map(([sei, mei]) => {
-      const tempSei = removeNamePrefix_(sei);
-      const tempSei2 = tempSei.trim().split(' ');
-      // 旧姓は切り捨てる
-      const outputSei = tempSei2.length > 1 ? tempSei2[1] : tempSei.trim();
-      // 名前の頭文字を取得
-      const outputMei = mei === undefined ? '' : mei.trim().charAt(0);
-      return `${outputSei} ${outputMei}`;
-    });
-    const joinNames = initialNameArray.join('; ');
-    return [joinNames, facilities];
-  });
+  const guiAddress = addressValues
+    .map(([names, facilities]) => {
+      //const tempNames = replaceSpecialCharacters_(names);
+      const tempNames = removeGroupAuthor_(names, groupAuthor);
+      if (tempNames === '') {
+        return null;
+      }
+      const nameArray = tempNames.split(';').map(x => x.split(','));
+      const initialNameArray = nameArray.map(([sei, mei]) => {
+        const tempSei = removeNamePrefix_(sei);
+        const tempSei2 = tempSei.trim().split(' ');
+        // 旧姓は切り捨てる
+        const outputSei = tempSei2.length > 1 ? tempSei2[1] : tempSei.trim();
+        // 名前の頭文字を取得
+        const outputMei = mei === undefined ? '' : mei.trim().charAt(0);
+        return `${outputSei} ${outputMei}`;
+      });
+      const joinNames = initialNameArray.join('; ');
+      return [joinNames, facilities];
+    })
+    .filter(x => x !== null);
   return guiAddress;
 }
 function removeNamePrefix_(fullName) {
   const prefixes = [
     'van den',
+    'bin abd',
     'de',
     'van',
     'von',
@@ -120,6 +126,7 @@ function removeNamePrefix_(fullName) {
     'del',
     'la',
     'le',
+    'al',
   ]; // よくある前置詞
   const pattern = new RegExp(`\\b(${prefixes.join('|')})\\b(?!$)`, 'gi'); // 単語単位でマッチ、ただし末尾は除外
 
@@ -129,27 +136,39 @@ function removeNamePrefix_(fullName) {
     .trim(); // 前後の空白を削除
 }
 
-function getOutputAddress_(outputValue) {
+function removeGroupAuthor_(str, groupAuthor) {
+  let tempNames = str;
+  if (groupAuthor.length > 0 && groupAuthor[0] !== '') {
+    groupAuthor.forEach(author => {
+      const regex = new RegExp(author, 'g');
+      tempNames = tempNames.replace(regex, '');
+    });
+  }
+  return tempNames;
+}
+
+function getOutputAddress_(outputValue, groupAuthor) {
   const addressValues = editAddressForCompare_(outputValue);
-  const outputAddress = addressValues.map(([names, facilities]) => {
-    //const tempNames = replaceSpecialCharacters_(names);
-    const tempNames = names;
-    const namesSplit = tempNames.split('; ');
-    const nameArray = namesSplit.map(x => {
-      if (x.split(' ').length > 2) {
-        console.log('');
+  const outputAddress = addressValues
+    .map(([names, facilities]) => {
+      const tempNames = removeGroupAuthor_(names, groupAuthor);
+      if (tempNames === '') {
+        return null;
       }
-      const tempName = x.split(' ').length > 2 ? removeNamePrefix_(x) : x;
-      const res = tempName.split(' ');
-      return res;
-    });
-    const initialNameArray = nameArray.map(([sei, mei]) => {
-      const trimmedMei = mei === undefined ? '' : mei.trim().charAt(0);
-      return `${sei.trim()} ${trimmedMei}`;
-    });
-    const joinNames = initialNameArray.join('; ');
-    return [joinNames, facilities];
-  });
+      const namesSplit = tempNames.split('; ');
+      const nameArray = namesSplit.map(x => {
+        const tempName = x.split(' ').length > 2 ? removeNamePrefix_(x) : x;
+        const res = tempName.split(' ');
+        return res;
+      });
+      const initialNameArray = nameArray.map(([sei, mei]) => {
+        const trimmedMei = mei === undefined ? '' : mei.trim().charAt(0);
+        return `${sei.trim()} ${trimmedMei}`;
+      });
+      const joinNames = initialNameArray.join('; ');
+      return [joinNames, facilities];
+    })
+    .filter(x => x !== null);
   return outputAddress;
 }
 function getUniqueGuiAddress_(guiAddress, outputAddress) {

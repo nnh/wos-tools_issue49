@@ -170,7 +170,6 @@ function compareAddress_(uniqueGuiAddress, address) {
     ([author, facility]) => [splitAddress_(author), facility]
   );
   let checkFlag = false;
-  let targetFacility = null;
   for (const [guiAuthors, facility] of uniqueGuiAddressSplitByAuthors) {
     // GUI側に重複著者がいる場合重複を削除して比較する
     const uniqueGuiAuthors = [...new Set(guiAuthors)];
@@ -179,17 +178,18 @@ function compareAddress_(uniqueGuiAddress, address) {
         uniqueGuiAuthors.length === outputAuthors.length &&
         uniqueGuiAuthors.every(author => outputAuthors.includes(author))
       ) {
-        checkFlag = true;
-        break;
+        if (facility === address[1]) {
+          checkFlag = true;
+          break;
+        }
       }
     }
     if (checkFlag) {
-      targetFacility = facility;
       break;
     }
   }
-  if (targetFacility !== null) {
-    return targetFacility !== address[1];
+  if (checkFlag) {
+    return false;
   }
 
   // 著者順が異なるレコードを許容する

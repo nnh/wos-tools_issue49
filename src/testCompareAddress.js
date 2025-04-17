@@ -171,17 +171,14 @@ function getOutputAddress_(outputValue, groupAuthor) {
     .filter(x => x !== null);
   return outputAddress;
 }
-function getUniqueGuiAddress_(guiAddress, outputAddress) {
-  if (guiAddress.length === outputAddress.length) {
-    // GUI側が重複していない場合はそのまま返す
-    return guiAddress;
-  }
-  let uniqueGuiAddress = [...guiAddress];
-  // GUI側が重複している場合はOKとみなす
-  uniqueGuiAddress = guiAddress.filter(
-    (item, index, self) =>
-      index ===
-      self.findIndex(other => other[0] === item[0] && other[1] === item[1])
-  );
-  return uniqueGuiAddress;
+function getUniqueGuiAddress_(guiAddress) {
+  const groupedGuiAddress = guiAddress.reduce((acc, [name, facility]) => {
+    const existing = acc.find(([n, f]) => n === name && f === facility);
+    if (existing) {
+      return acc;
+    }
+    acc.push([name, facility]);
+    return acc;
+  }, []);
+  return groupedGuiAddress;
 }

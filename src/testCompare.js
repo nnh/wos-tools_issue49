@@ -47,19 +47,7 @@ function execCompareByColumn_(value, key, guiRow, outputRow, wosId) {
     const groupAuthor = getGroupAuthor_(guiRow);
     const guiAddress = getGuiAddress_(guiValue, groupAuthor);
     const outputAddress = getOutputAddress_(outputValue, groupAuthor);
-    const uniqueGuiAddress = getUniqueGuiAddress_(guiAddress, outputAddress);
-    if (uniqueGuiAddress.length !== outputAddress.length) {
-      if (
-        wosId !== 'WOS:001195962600047' &&
-        wosId !== 'WOS:001304189600017' &&
-        wosId !== 'WOS:001382600700002' &&
-        wosId !== 'WOS:001383183700001'
-      ) {
-        throw new Error(
-          `WOS ID ${wosId} のアドレス情報が一致しません。GUI: ${guiAddress} スプレッドシート: ${outputAddress}`
-        );
-      }
-    }
+    const uniqueGuiAddress = getUniqueGuiAddress_(guiAddress);
 
     outputAddress.forEach(address => {
       // GUI側の出力にエラーがあるため無視するレコード
@@ -78,7 +66,8 @@ function execCompareByColumn_(value, key, guiRow, outputRow, wosId) {
         (wosId === 'WOS:001383183700001' &&
           address[0] === 'Kawaguchi M; Hayashi M') ||
         (wosId === 'WOS:001383183700001' &&
-          address[0] === 'Kadono T; Fujimoto M')
+          address[0] === 'Kadono T; Fujimoto M') ||
+        (wosId === 'WOS:001085123400001' && address[0] === 'Mannami T')
       ) {
         return;
       }

@@ -44,6 +44,10 @@ function execCompareByColumn_(value, key, guiRow, outputRow, wosId) {
     }
     errorMessage = `WOS ID ${wosId} のPubMed IDが一致しません。GUI: ${guiValue} スプレッドシート: ${outputValue}`;
   } else if (key === 'addresses') {
+    const groupAuthor = getGroupAuthor_(guiRow);
+    if (groupAuthor.length > 0) {
+      console.log(0);
+    }
     const guiAddress = getGuiAddress_(guiValue);
     const outputAddress = getOutputAddress_(outputValue);
     const uniqueGuiAddress = getUniqueGuiAddress_(guiAddress, outputAddress);
@@ -77,10 +81,13 @@ function execCompareByColumn_(value, key, guiRow, outputRow, wosId) {
     throw new Error(errorMessage);
   }
 }
-function compareAuthors_(guiRow, guiValue, outputValue) {
-  const groupAuthor = guiRow[guiColIndexMap.get('groupAuthor')]
+function getGroupAuthor_(guiRow) {
+  return guiRow[guiColIndexMap.get('groupAuthor')]
     .split(';')
     .map(x => x.trim());
+}
+function compareAuthors_(guiRow, guiValue, outputValue) {
+  const groupAuthor = getGroupAuthor_(guiRow);
   const guiAuthor = guiValue.split(';').map(x => x.replace(/,/g, '').trim());
   const outputAuthor = outputValue
     .split(',')
@@ -125,9 +132,7 @@ function compareDocType_(guiValue, outputValue) {
 function splitAddress_(address) {
   return address.split('; ');
 }
-function isAddressExists(addressString, addressArray) {
-  const addresses = splitAddress_(addressString);
-}
+
 function compareAddress_(uniqueGuiAddress, address) {
   // 完全一致か
   const guiAddressItem = uniqueGuiAddress.filter(x => x[0] === address[0]);
@@ -137,6 +142,7 @@ function compareAddress_(uniqueGuiAddress, address) {
     );
     return guiAddressItemFacility.length === 0;
   }
+
   const authors = splitAddress_(address[0]);
   // 完全一致するものがない場合、特殊文字を置換して再検索
   const authorCombinations = getReplaceSpecialCharactersAuthors_(

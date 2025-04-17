@@ -1,33 +1,87 @@
+const specialCharacters = getSpecialCharactersArray_();
+
+function getSpecialCharactersArray_() {
+  // 特殊文字リスト
+  const o_umulautLower = 'ö';
+  const o_umulautUpper = 'Ö';
+  const specialCharactersO_UmlautArrayLower = ['o', 'oe'].map(x => [
+    o_umulautLower,
+    x,
+  ]);
+  const specialCharactersO_UmlautArrayUpper = ['O', 'OE'].map(x => [
+    o_umulautUpper,
+    x,
+  ]);
+  const specialCharactersO_UmlautArray = [
+    ...specialCharactersO_UmlautArrayLower,
+    ...specialCharactersO_UmlautArrayUpper,
+  ];
+  const specialCharactersArray = [
+    ['ä', 'a'],
+    //['ö', 'oe'],
+    ['ü', 'u'],
+    ['ß', 'ss'],
+    ['Ä', 'A'],
+    //  ['Ö', 'OE'],
+    ['Ü', 'U'],
+    ['ñ', 'n'],
+    ['Ñ', 'N'],
+    ['é', 'e'],
+    ['É', 'E'],
+    ['í', 'i'],
+    ['Í', 'I'],
+    ['á', 'a'],
+    ['Á', 'A'],
+    ['ó', 'o'],
+    ['Ó', 'O'],
+    ['ú', 'u'],
+    ['Ú', 'U'],
+    ['â', 'a'],
+    ['ê', 'e'],
+    ['î', 'i'],
+    ['ô', 'o'],
+    ['û', 'u'],
+    ['Â', 'A'],
+    ['Ê', 'E'],
+    ['Î', 'I'],
+    ['ç', 'c'],
+    ['Ç', 'C'],
+    ['ñ', 'n'],
+    ['Ñ', 'N'],
+    ['ý', 'y'],
+    ['Ý', 'Y'],
+    ['ø', 'o'],
+    ['Ø', 'O'],
+  ];
+  const specialCharactersKeys = specialCharactersArray.map(([key, _]) => key);
+  specialCharactersKeys.push(o_umulautLower);
+  specialCharactersKeys.push(o_umulautUpper);
+  const res = new Map();
+  res.set('keys', specialCharactersKeys);
+  const array = new Set();
+  specialCharactersO_UmlautArray.forEach(x => {
+    const arr = [...specialCharactersArray, x];
+    array.add(arr);
+  });
+  res.set('values', array);
+  return res;
+}
 // ウムラウトなどの特殊文字を含む場合、正規表現で置換する
 function replaceSpecialCharacters_(str) {
-  return str
-    .replace(/ä/g, 'a')
-    .replace(/ö/g, 'oe')
-    .replace(/ü/g, 'u')
-    .replace(/ß/g, 'ss')
-    .replace(/Ä/g, 'A')
-    .replace(/Ö/g, 'OE')
-    .replace(/Ü/g, 'U')
-    .replace(/ñ/g, 'n')
-    .replace(/Ñ/g, 'N')
-    .replace(/é/g, 'e')
-    .replace(/É/g, 'E')
-    .replace(/í/g, 'i')
-    .replace(/Í/g, 'I')
-    .replace(/á/g, 'a')
-    .replace(/Á/g, 'A')
-    .replace(/ó/g, 'o')
-    .replace(/Ó/g, 'O')
-    .replace(/ú/g, 'u')
-    .replace(/Ú/g, 'U')
-    .replace(/â/g, 'a')
-    .replace(/ê/g, 'e')
-    .replace(/î/g, 'i')
-    .replace(/ô/g, 'o')
-    .replace(/û/g, 'u')
-    .replace(/Â/g, 'A')
-    .replace(/Ê/g, 'E')
-    .replace(/Î/g, 'I');
+  const specialCharactersArray = Array.from(specialCharacters.get('values'));
+  const replaceValue = specialCharactersArray.map(array => {
+    let replaceStr = str;
+    for (const [key, value] of array) {
+      const regex = new RegExp(key, 'g');
+      replaceStr = replaceStr.replace(regex, value);
+    }
+    return replaceStr;
+  });
+  // 重複を削除する
+  const uniqueRes = new Set(replaceValue);
+  // Setを配列に変換して返す
+  const uniqueArray = Array.from(uniqueRes);
+  return uniqueArray;
 }
 function editAddressForCompare_(value) {
   return value
@@ -38,10 +92,11 @@ function editAddressForCompare_(value) {
 function getGuiAddress_(guiValue) {
   const addressValues = editAddressForCompare_(guiValue);
   const guiAddress = addressValues.map(([names, facilities]) => {
-    const tempNames = replaceSpecialCharacters_(names);
+    //const tempNames = replaceSpecialCharacters_(names);
+    const tempNames = names;
     const nameArray = tempNames.split(';').map(x => x.split(','));
     const initialNameArray = nameArray.map(([sei, mei]) => {
-      const tempSei = sei.replace(/^de /, '');
+      const tempSei = removeNamePrefix_(sei);
       const tempSei2 = tempSei.trim().split(' ');
       // 旧姓は切り捨てる
       const outputSei = tempSei2.length > 1 ? tempSei2[1] : tempSei.trim();
@@ -54,21 +109,37 @@ function getGuiAddress_(guiValue) {
   });
   return guiAddress;
 }
+function removeNamePrefix_(fullName) {
+  const prefixes = [
+    'van den',
+    'de',
+    'van',
+    'von',
+    'da',
+    'di',
+    'del',
+    'la',
+    'le',
+  ]; // よくある前置詞
+  const pattern = new RegExp(`\\b(${prefixes.join('|')})\\b(?!$)`, 'gi'); // 単語単位でマッチ、ただし末尾は除外
+
+  return fullName
+    .replace(pattern, '') // 前置詞を削除
+    .replace(/\s{2,}/g, ' ') // 余計なスペースを1つに
+    .trim(); // 前後の空白を削除
+}
+
 function getOutputAddress_(outputValue) {
   const addressValues = editAddressForCompare_(outputValue);
   const outputAddress = addressValues.map(([names, facilities]) => {
-    const tempNames = replaceSpecialCharacters_(names);
+    //const tempNames = replaceSpecialCharacters_(names);
+    const tempNames = names;
     const namesSplit = tempNames.split('; ');
     const nameArray = namesSplit.map(x => {
-      const tempName =
-        x.split(' ').length > 2
-          ? x
-              .replace(/^Le /, '')
-              .replace(/^de la /, '')
-              .replace(/^de /, '')
-              .replace(/^van den /i, '')
-              .replace(/^Van /i, '')
-          : x;
+      if (x.split(' ').length > 2) {
+        console.log('');
+      }
+      const tempName = x.split(' ').length > 2 ? removeNamePrefix_(x) : x;
       const res = tempName.split(' ');
       return res;
     });

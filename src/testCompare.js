@@ -61,74 +61,6 @@ function execCompareByColumn_(value, key, guiRow, outputRow, wosId) {
     }
 
     outputAddress.forEach(address => {
-      if (wosId === 'WOS:001382600700002') {
-        return;
-      }
-      if (
-        wosId === 'WOS:001153332600001' &&
-        (address[0] === 'Schoeler J; Lange T; Hedenstroem P' ||
-          address[0] === 'Alavanja M; Yamamoto S; Hedenstroem P')
-      ) {
-        return;
-      }
-      if (wosId === 'WOS:001156433100009' && address[0] === 'HepatoBiliary P') {
-        return;
-      }
-      if (
-        wosId === 'WOS:001156412600070' &&
-        address[0] === 'Kanda T; Matsuda Y; Masuda M; OCVC-Arrhythmia I'
-      ) {
-        return;
-      }
-      if (wosId === 'WOS:001162123600001') {
-        return;
-      }
-      if (
-        wosId === 'WOS:001304189600017' &&
-        address[0] === 'Moehlenbruch M; Jesser J'
-      ) {
-        return;
-      }
-      if (
-        wosId === 'WOS:001306797500001' &&
-        address[0] === 'Pissaloux D; Fouchardiere A'
-      ) {
-        return;
-      }
-      if (
-        wosId === 'WOS:001272173500010' &&
-        address[0] === 'Yamanashi Y; Biobank J'
-      ) {
-        return;
-      }
-      if (wosId === 'WOS:001306570500001' && address[0] === 'Eynde M') {
-        return;
-      }
-      if (
-        wosId === 'WOS:001283232400002' &&
-        address[0] ===
-          'Nobe R; Ishida K; Togami Y; Ojima M; Sogabe T; Ohnishi M'
-      ) {
-        return;
-      }
-      if (wosId === 'WOS:001291477800001' && address[0] === 'Sousa D') {
-        return;
-      }
-      if (
-        wosId === 'WOS:001354231300040' &&
-        address[0] === 'Yamanashi Y; Biobank J'
-      ) {
-        return;
-      }
-      if (wosId === 'WOS:001321080900001' && address[0] === 'Bin A') {
-        return;
-      }
-      if (wosId === 'WOS:001379732900001' && address[0] === 'Al K') {
-        return;
-      }
-      if (wosId === 'WOS:001383183700001') {
-        return;
-      }
       const error_f = compareAddress_(uniqueGuiAddress, address);
       if (!error_f) {
         return;
@@ -190,7 +122,14 @@ function compareDocType_(guiValue, outputValue) {
     !guiDocType.every(docType => outputDocType.includes(docType))
   );
 }
+function splitAddress_(address) {
+  return address.split('; ');
+}
+function isAddressExists(addressString, addressArray) {
+  const addresses = splitAddress_(addressString);
+}
 function compareAddress_(uniqueGuiAddress, address) {
+  // 完全一致か
   const guiAddressItem = uniqueGuiAddress.filter(x => x[0] === address[0]);
   if (guiAddressItem.length !== 0) {
     const guiAddressItemFacility = guiAddressItem.filter(
@@ -198,8 +137,39 @@ function compareAddress_(uniqueGuiAddress, address) {
     );
     return guiAddressItemFacility.length === 0;
   }
+  const authors = splitAddress_(address[0]);
+  // 完全一致するものがない場合、特殊文字を置換して再検索
+  const authorCombinations = getReplaceSpecialCharactersAuthors_(
+    authors,
+    address
+  );
+  const uniqueGuiAddressSplitByAuthors = uniqueGuiAddress.map(
+    ([author, facility]) => [splitAddress_(author), facility]
+  );
+  let checkFlag = false;
+  let targetFacility = null;
+  for (const [guiAuthors, facility] of uniqueGuiAddressSplitByAuthors) {
+    // GUI側に重複著者がいる場合重複を削除して比較する
+    const uniqueGuiAuthors = [...new Set(guiAuthors)];
+    for (const outputAuthors of authorCombinations) {
+      if (
+        uniqueGuiAuthors.length === outputAuthors.length &&
+        uniqueGuiAuthors.every(author => outputAuthors.includes(author))
+      ) {
+        checkFlag = true;
+        break;
+      }
+    }
+    if (checkFlag) {
+      targetFacility = facility;
+      break;
+    }
+  }
+  if (targetFacility !== null) {
+    return targetFacility !== address[1];
+  }
+
   // 著者順が異なるレコードを許容する
-  const authors = address[0].split('; ');
   const testAddressItems = uniqueGuiAddress
     .map(([author, facility]) => {
       const authorArray = author.split('; ');
@@ -220,4 +190,34 @@ function compareAddress_(uniqueGuiAddress, address) {
     return true;
   }
   return false;
+}
+function cartesianProduct_(arrays) {
+  return arrays.reduce(
+    (acc, curr) => {
+      const result = [];
+      for (const a of acc) {
+        for (const c of curr) {
+          result.push([...a, c]);
+        }
+      }
+      return result;
+    },
+    [[]]
+  ); // 初期値は空の配列1つ（1組）
+}
+function getReplaceSpecialCharactersAuthors_(authors, address) {
+  const specialCharCheck = specialCharacters.get('keys').some(key => {
+    const regex = new RegExp(key, 'g');
+    return address[0].match(regex) !== null;
+  });
+  let authorCombinations = [];
+  if (specialCharCheck) {
+    const replaceAuthors = authors.map(author =>
+      replaceSpecialCharacters_(author)
+    );
+    authorCombinations = cartesianProduct_(replaceAuthors);
+  } else {
+    authorCombinations.push(authors);
+  }
+  return authorCombinations;
 }

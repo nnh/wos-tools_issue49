@@ -43,6 +43,16 @@ function execCompareByColumn_(value, key, guiRow, outputRow, wosId) {
       return;
     }
     errorMessage = `WOS ID ${wosId} のPubMed IDが一致しません。GUI: ${guiValue} スプレッドシート: ${outputValue}`;
+  } else if (key === 'vol') {
+    if (Number(guiValue) === Number(outputValue)) {
+      return;
+    }
+    errorMessage = `WOS ID ${wosId} の巻号情報が一致しません。GUI: ${guiValue} スプレッドシート: ${outputValue}`;
+  } else if (key === 'issue') {
+    if (Number(guiValue) === Number(outputValue)) {
+      return;
+    }
+    errorMessage = `WOS ID ${wosId} の号情報が一致しません。GUI: ${guiValue} スプレッドシート: ${outputValue}`;
   } else if (key === 'addresses') {
     const groupAuthor = getGroupAuthor_(guiRow);
     const guiAddress = getGuiAddress_(guiValue, groupAuthor);

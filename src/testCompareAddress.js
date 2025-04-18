@@ -172,7 +172,12 @@ function getOutputAddress_(outputValue, groupAuthor) {
   return outputAddress;
 }
 function getUniqueGuiAddress_(guiAddress) {
-  const groupedGuiAddress = guiAddress.reduce((acc, [name, facility]) => {
+  const removeGuiAddress = guiAddress.map(([name, facility]) => {
+    const tempFacility = facility.split('; ').map(x => x.trim());
+    return [name, tempFacility[0]];
+  });
+
+  const groupedGuiAddress = removeGuiAddress.reduce((acc, [name, facility]) => {
     const existing = acc.find(([n, f]) => n === name && f === facility);
     if (existing) {
       return acc;

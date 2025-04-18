@@ -2,6 +2,16 @@ const specialCharacters = getSpecialCharactersArray_();
 
 function getSpecialCharactersArray_() {
   // 特殊文字リスト
+  const u_umulautLower = 'ü';
+  const u_umulautUpper = 'Ü';
+  const specialCharactersU_UmlautArrayLower = ['u', 'ue'].map(x => [
+    u_umulautLower,
+    x,
+  ]);
+  const specialCharactersU_UmlautArrayUpper = ['U', 'UE'].map(x => [
+    u_umulautUpper,
+    x,
+  ]);
   const o_umulautLower = 'ö';
   const o_umulautUpper = 'Ö';
   const specialCharactersO_UmlautArrayLower = ['o', 'oe'].map(x => [
@@ -15,14 +25,14 @@ function getSpecialCharactersArray_() {
   const specialCharactersO_UmlautArray = [
     ...specialCharactersO_UmlautArrayLower,
     ...specialCharactersO_UmlautArrayUpper,
+    ...specialCharactersU_UmlautArrayLower,
+    ...specialCharactersU_UmlautArrayUpper,
   ];
   const specialCharactersArray = [
     ['ä', 'a'],
-    //['ö', 'oe'],
     ['ü', 'u'],
     ['ß', 'ss'],
     ['Ä', 'A'],
-    //  ['Ö', 'OE'],
     ['Ü', 'U'],
     ['ñ', 'n'],
     ['Ñ', 'N'],

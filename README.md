@@ -49,11 +49,11 @@
 
   - `inputFolder` に格納された入力用 JSON ファイル（例: `408.json`）を中間JSON形式に変換し、
   - `intermediateFolder` に保存します。
-  - 本番処理 `outputJson()` の簡易版で、`testTargetJsonFileName` に一致する単一ファイルのみを対象とします。
+  - 本番処理 `outputJson()` の簡易版で、`common.js`の`testTargetJsonFileName` に一致する単一ファイルのみを対象とします。
 
 - **主な処理内容**：
 
-  1. スクリプトプロパティ `testTargetJsonFileName` で指定されたファイルを取得
+  1. `common.js`の`testTargetJsonFileName` で指定されたファイルを取得
   2. `getJson_()` を用いて中間JSON形式に変換
   3. 変換後JSONを `intermediateFolder` に保存
 
@@ -68,12 +68,12 @@
 - **用途**：
 
   - 上記で生成された中間JSONを用いて、
-  - 単一施設（`testTargetJsonFileName` に指定）に対応するスプレッドシートを出力します。
+  - 単一施設（`common.js`の`testTargetJsonFileName` に指定）に対応するスプレッドシートを出力します。
   - 本番処理 `outputSs()` の限定的なテスト版です。
 
 - **主な処理内容**：
 
-  1. `testTargetJsonFileName` に対応する中間JSONを取得
+  1. `common.js`の`testTargetJsonFileName` に対応する中間JSONを取得
   2. `outputSs()` 関数を利用してスプレッドシートを生成
   3. 出力先は `testFolderId` で指定されたフォルダ
 
@@ -93,7 +93,7 @@
 
 - **主な処理内容**：
 
-  1. `inputFolder` から `testTargetJsonFileName` に該当するファイルを取得
+  1. `inputFolder` から `common.js`の`testTargetJsonFileName` に該当するJSONファイルを取得
   2. 各レコードのUID（WoS ID）を抽出して `"UT=..."` 形式に変換
   3. 検索用のクエリ文字列をコンソール出力
   4. 実行日時を名前とするサブフォルダを `testFolderId` の下に作成し、スクリプトプロパティ `testTargetFolderId` に保存

@@ -70,7 +70,11 @@ function execCompareByColumn_(value, key, guiRow, outputRow, wosId) {
         (wosId === 'WOS:001383183700001' &&
           address[0] === 'Kawaguchi M; Hayashi M') ||
         (wosId === 'WOS:001383183700001' &&
-          address[0] === 'Kadono T; Fujimoto M')
+          address[0] === 'Kadono T; Fujimoto M') ||
+        (wosId === 'WOS:001372743200001' &&
+          address[0] === 'Jerusalem G; Collignon J') ||
+        (wosId === 'WOS:001367876900001' &&
+          address[0] === 'Hidaka D; Ota S; Takahata M')
       ) {
         return;
       }

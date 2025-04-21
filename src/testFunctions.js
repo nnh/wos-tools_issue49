@@ -123,3 +123,19 @@ function testCompareValues_(guiValues, outputValues) {
     });
   });
 }
+// デカルト積の作成
+// 例: [[1, 2], [3, 4]] -> [[1, 3], [1, 4], [2, 3], [2, 4]]
+function cartesianProduct_(arrays) {
+  return arrays.reduce(
+    (acc, curr) => {
+      const result = [];
+      for (const a of acc) {
+        for (const c of curr) {
+          result.push([...a, c]);
+        }
+      }
+      return result;
+    },
+    [[]]
+  ); // 初期値は空の配列1つ（1組）
+}

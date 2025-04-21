@@ -1,39 +1,52 @@
 const specialCharacters = getSpecialCharactersArray_();
-
+function test() {
+  getSpecialCharactersArray_();
+}
+function createReplaceSpecialCharacterArray_(
+  fromLower,
+  fromUpper,
+  toLowerArray,
+  toUpperArray
+) {
+  const lowerArray = toLowerArray.map(x => [fromLower, x]);
+  const upperArray = toUpperArray.map(x => [fromUpper, x]);
+  const array = lowerArray
+    .map(arr => {
+      const res = upperArray.map(arr2 => [arr, arr2]);
+      return res;
+    })
+    .flat();
+  return array;
+}
 function getSpecialCharactersArray_() {
   // 特殊文字リスト
   const u_umulautLower = 'ü';
   const u_umulautUpper = 'Ü';
-  const specialCharactersU_UmlautArrayLower = ['u', 'ue'].map(x => [
+  const u_umulautArray = createReplaceSpecialCharacterArray_(
     u_umulautLower,
-    x,
-  ]);
-  const specialCharactersU_UmlautArrayUpper = ['U', 'UE'].map(x => [
     u_umulautUpper,
-    x,
-  ]);
+    ['u', 'ue'],
+    ['U', 'UE']
+  );
+
   const o_umulautLower = 'ö';
   const o_umulautUpper = 'Ö';
-  const specialCharactersO_UmlautArrayLower = ['o', 'oe'].map(x => [
+  const o_umulautArray = createReplaceSpecialCharacterArray_(
     o_umulautLower,
-    x,
-  ]);
-  const specialCharactersO_UmlautArrayUpper = ['O', 'OE'].map(x => [
     o_umulautUpper,
-    x,
-  ]);
-  const specialCharactersO_UmlautArray = [
-    ...specialCharactersO_UmlautArrayLower,
-    ...specialCharactersO_UmlautArrayUpper,
-    ...specialCharactersU_UmlautArrayLower,
-    ...specialCharactersU_UmlautArrayUpper,
-  ];
+    ['o', 'oe'],
+    ['O', 'OE']
+  );
+  const specialCharactersUmulautArray = u_umulautArray
+    .map(arr => {
+      const res = o_umulautArray.map(arr2 => [...arr, ...arr2]);
+      return res;
+    })
+    .flat();
   const specialCharactersArray = [
     ['ä', 'a'],
-    ['ü', 'u'],
     ['ß', 'ss'],
     ['Ä', 'A'],
-    ['Ü', 'U'],
     ['ñ', 'n'],
     ['Ñ', 'N'],
     ['é', 'e'],
@@ -64,13 +77,15 @@ function getSpecialCharactersArray_() {
     ['Ø', 'O'],
   ];
   const specialCharactersKeys = specialCharactersArray.map(([key, _]) => key);
+  specialCharactersKeys.push(u_umulautLower);
+  specialCharactersKeys.push(u_umulautUpper);
   specialCharactersKeys.push(o_umulautLower);
   specialCharactersKeys.push(o_umulautUpper);
   const res = new Map();
   res.set('keys', specialCharactersKeys);
   const array = new Set();
-  specialCharactersO_UmlautArray.forEach(x => {
-    const arr = [...specialCharactersArray, x];
+  specialCharactersUmulautArray.forEach(x => {
+    const arr = [...specialCharactersArray, ...x];
     array.add(arr);
   });
   res.set('values', array);
@@ -110,7 +125,8 @@ function getGuiAddress_(guiValue, groupAuthor) {
       }
       const nameArray = tempNames.split(';').map(x => x.split(','));
       const initialNameArray = nameArray.map(([sei, mei]) => {
-        const tempSei = removeNamePrefix_(sei);
+        const tempSei =
+          sei.split(' ').length > 2 ? removeNamePrefix_(sei) : sei;
         const tempSei2 = tempSei.trim().split(' ');
         // 旧姓は切り捨てる
         const outputSei = tempSei2.length > 1 ? tempSei2[1] : tempSei.trim();
@@ -127,23 +143,51 @@ function getGuiAddress_(guiValue, groupAuthor) {
 function removeNamePrefix_(fullName) {
   const prefixes = [
     'van den',
+    'Van Den',
+    'Van den',
+    'van Den',
     'bin abd',
+    'bin Abd',
+    'Bin Abd',
+    'Bin abd',
     'de',
+    'De',
     'van',
+    'Van',
     'von',
+    'Von',
     'da',
+    'Da',
     'di',
+    'Di',
     'del',
+    'Del',
     'la',
+    'La',
     'le',
+    'Le',
     'al',
-  ]; // よくある前置詞
-  const pattern = new RegExp(`\\b(${prefixes.join('|')})\\b(?!$)`, 'gi'); // 単語単位でマッチ、ただし末尾は除外
+    'Al',
+  ];
 
-  return fullName
-    .replace(pattern, '') // 前置詞を削除
-    .replace(/\s{2,}/g, ' ') // 余計なスペースを1つに
-    .trim(); // 前後の空白を削除
+  // スペースで区切られた単語として一致するように分割して処理
+  const words = fullName.split(' ');
+  const cleaned = [];
+
+  for (let i = 0; i < words.length; i++) {
+    const current = words[i];
+    const next = words[i + 1];
+    const twoWordPrefix = `${current} ${next}`;
+    if (prefixes.includes(twoWordPrefix)) {
+      i++; // 2単語前置詞をスキップ
+      continue;
+    }
+    if (!prefixes.includes(current)) {
+      cleaned.push(words[i]);
+    }
+  }
+
+  return cleaned.join(' ');
 }
 
 function removeGroupAuthor_(str, groupAuthor) {

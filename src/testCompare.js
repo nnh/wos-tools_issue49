@@ -52,6 +52,9 @@ function execCompareByColumn_(value, key, guiRow, outputRow, wosId) {
     if (Number(guiValue) === Number(outputValue)) {
       return;
     }
+    if (String(guiValue).trim() === String(outputValue).trim()) {
+      return;
+    }
     errorMessage = `WOS ID ${wosId} の号情報が一致しません。GUI: ${guiValue} スプレッドシート: ${outputValue}`;
   } else if (key === 'addresses') {
     const groupAuthor = getGroupAuthor_(guiRow);
@@ -62,22 +65,12 @@ function execCompareByColumn_(value, key, guiRow, outputRow, wosId) {
     outputAddress.forEach(address => {
       // GUI側の出力にエラーがあるため無視するレコード
       if (
-        (wosId === 'WOS:001162123600001' && address[0] === 'Nishimura K') ||
-        (wosId === 'WOS:001162123600001' &&
-          address[0] === 'Matsuhisa M; Meguro S') ||
-        (wosId === 'WOS:001162123600001' && address[0] === 'Kouyama R') ||
-        wosId === 'WOS:001283232400002' ||
         (wosId === 'WOS:001382600700002' &&
           address[0] === 'Satomi K; Takatsuki S') ||
-        (wosId === 'WOS:001354231300040' &&
-          address[0] === 'Namba S; Sonehara K; Okada Y') ||
-        (wosId === 'WOS:001381238200026' && address[0] === 'Matsuda K') ||
-        (wosId === 'WOS:001381238200026' && address[0] === 'Murakami Y') ||
         (wosId === 'WOS:001383183700001' &&
           address[0] === 'Kawaguchi M; Hayashi M') ||
         (wosId === 'WOS:001383183700001' &&
-          address[0] === 'Kadono T; Fujimoto M') ||
-        (wosId === 'WOS:001085123400001' && address[0] === 'Mannami T')
+          address[0] === 'Kadono T; Fujimoto M')
       ) {
         return;
       }
@@ -212,20 +205,6 @@ function compareAddress_(uniqueGuiAddress, address) {
     return true;
   }
   return false;
-}
-function cartesianProduct_(arrays) {
-  return arrays.reduce(
-    (acc, curr) => {
-      const result = [];
-      for (const a of acc) {
-        for (const c of curr) {
-          result.push([...a, c]);
-        }
-      }
-      return result;
-    },
-    [[]]
-  ); // 初期値は空の配列1つ（1組）
 }
 function getReplaceSpecialCharactersAuthors_(authors, address) {
   const specialCharCheck = specialCharacters.get('keys').some(key => {

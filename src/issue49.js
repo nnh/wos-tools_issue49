@@ -224,37 +224,23 @@ function getJsonDetail_(rec) {
   const res = papers.map(paper => {
     const targetFacilityAuthors = paper.authors
       .map(authorInfo => {
+        // 1. NHO職員でない場合は一律除外
         if (!authorInfo.isNhoStaff) {
           return null;
         }
-        const ad = authorInfo.organizations
-          .map(organization =>
-            facilityInfo.AD.map(ad =>
-              new RegExp(ad, 'i').test(organization.fullAddress)
-            ).some(x => x)
-          )
-          .some(x => x);
-        if (ad) {
+
+        // 2. 著者の organizations の中に、この処理対象の facilityNumber があるか直接確認
+        const hasMatchingFacility = authorInfo.organizations.some(
+          org => String(org.facilityNumber) === String(facilityNumber)
+        );
+
+        if (hasMatchingFacility) {
           return authorInfo;
         }
-        const oo = authorInfo.organizations
-          .map(organization =>
-            facilityInfo.OO.map(oo =>
-              organization.content
-                .map(content => new RegExp(oo, 'i').test(content))
-                .some(x => x)
-            ).some(x => x)
-          )
-          .some(x => x);
-        if (oo) {
-          return authorInfo;
-        }
+
         return null;
       })
       .filter(x => x);
-    const targetFacilityAuthorName = targetFacilityAuthors
-      .map(x => x.name)
-      .join(', ');
     const isFirstAuthor = targetFacilityAuthors
       .map(x => x.isFirstAuthor)
       .some(x => x);
